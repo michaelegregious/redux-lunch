@@ -1,0 +1,326 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<title>State Machines</title>
+
+		<link rel="stylesheet" href="css/reveal.css">
+		<link rel="stylesheet" href="css/theme/black.css">
+
+    <!-- Theme used for syntax highlighting of code -->
+		<link rel="stylesheet" href="lib/css/monokai.css">
+
+		<!-- Printing and PDF exports -->
+		<script>
+			var link = document.createElement( 'link' );
+			link.rel = 'stylesheet';
+			link.type = 'text/css';
+			link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+			document.getElementsByTagName( 'head' )[0].appendChild( link );
+		</script>
+	</head>
+	<body>
+		<div class="reveal">
+			<div class="slides">
+				<section>
+          <h2>State Machines</h2>
+          <p>
+            <small>GreenKey Lunch & Learn</small> 
+          </p>
+          <p>
+            <small>March 22, 2019</small>
+          </p>
+        </section>
+
+				<section>
+          <h3>Motivation: Sidescroller game</h3>
+          Example from: <a href="http://gameprogrammingpatterns.com/state.html">Game Programming Patterns</a>
+        </section>
+
+        <section>
+          <h2>Sidescroller Game</h2>
+          <pre><code class="hljs" data-trim>
+class Hero() {
+  handleInput(event) {
+    if (event.type === BUTTON_B) {
+      this.jump();
+    }
+  }
+
+  jump() {
+    // render jump sprite and animate...
+  }
+}
+          </code></pre>
+        </section>
+
+        <section>
+          <h2>Jump Bugfix</h2>
+          <pre><code class="hljs javascript" data-trim data-line-numbers="3-8,11-13">
+class Hero() {
+  handleInput(event) {
+    if (event.type === BUTTON_B) {
+      if (!this._isJumping) {
+        this._isJumping = true;
+        this.jump(() => { this._isJumping = false; });
+      }
+    }
+  }
+
+  jump(callback) {
+    // render jump sprite, animate, then invoke callback...
+  }
+}
+          </code></pre>
+        </section>
+
+        <section>
+          <h2>Duck</h2>
+          <pre class="stretch"><code class="hljs javascript" data-trim data-line-numbers="9-16,20,21">
+class Hero() {
+  handleInput(event) {
+    if (event.type === BUTTON_B) {
+      if (!this._isJumping) {
+        this._isJumping = true;
+        this.jump(() => { this._isJumping = false; });
+      }
+    }
+    else if (event.type === PRESS_DOWN) {
+      if (!this._isJumping) {
+        this.duck();
+      }
+    }
+    else if (event.type === RELEASE_DOWN) {
+      this.stand();
+    }
+  }
+
+  jump(callback) {},
+  duck() {},
+  stand() {},
+}
+          </code></pre>
+        </section>
+
+        <section>
+          <h2>Duck Bugfix</h2>
+          <pre class="stretch"><code class="hljs javascript" data-trim data-line-numbers="4,11,16-17,19">
+class Hero() {
+  handleInput(event) {
+    if (event.type === BUTTON_B) {
+      if (!this._isJumping && !this._isDucking) {
+        this._isJumping = true;
+        this.jump(() => { this._isJumping = false; });
+      }
+    }
+    else if (event.type === PRESS_DOWN) {
+      if (!this._isJumping) {
+        this._isDucking = true;
+        this.duck();
+      }
+    }
+    else if (event.type === RELEASE_DOWN) {
+      if (this._isDucking) {
+        this._isDucking = false;
+        this.stand();
+      }
+    }
+  }
+
+  jump(callback) {},
+  duck() {},
+  stand() {},
+}
+          </code></pre>
+        </section>
+
+        <section>
+          <h2>Dive Attack</h2>
+
+          <pre class="stretch"><code class="hljs javascript" data-trim data-line-numbers="13-16,29">
+class Hero() {
+  handleInput(event) {
+    if (event.type === BUTTON_B) {
+      if (!this._isJumping && !this._isDucking) {
+        this._isJumping = true;
+        this.jump(() => { this._isJumping = false; });
+      }
+    }
+    else if (event.type === PRESS_DOWN) {
+      if (!this._isJumping) {
+        this._isDucking = true;
+        this.duck();
+      } else {
+        this._isJumping = false;
+        this.dive();
+      }
+    }
+    else if (event.type === RELEASE_DOWN) {
+      if (this._isDucking) {
+        this._isDucking = false;
+        this.stand();
+      }
+    }
+  }
+
+  jump(callback) {},
+  duck() {},
+  stand() {},
+  dive() {},
+}
+          </code></pre>
+        </section>
+
+        <section>
+          <h2>State Machine</h2>
+          <ul>
+            <li>
+              An abstract machine that can be in exactly one of a finite number of states at any given time
+            </li>
+            <li>
+              The FSM can change from one state to another in response to some external inputs (transition)
+            </li>
+            <li>
+              Defined by a list of its states, its initial state, and the conditions for each transition
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Door State Machine</h2>
+          <img src="./img/door.png">
+        </section>
+
+        <section>
+          <h2>Hero State Machine</h2>
+          <img src="./img/hero.png">
+        </section>
+
+        <section>
+          <h2>State Machine</h2>
+
+          <pre class="stretch"><code class="hljs javascript">
+// https://xstate.js.org/
+const Hero = Machine({
+  initial: 'standing',
+
+  states: {
+    standing: {
+      onEntry: ['stand'],
+      on: {
+        PRESS_B: 'jumping',
+        PRESS_DOWN: 'ducking'
+      }
+    },
+    ducking: {
+      onEntry: ['duck'],
+      on: {
+        RELEASE_DOWN: 'standing'
+      }
+    },
+    jumping: {
+      onEntry: ['jump'],
+      on: {
+        PRESS_DOWN: 'diving',
+        JUMP_FINISHED: 'standing'
+      }
+    },
+    diving: {
+      onEntry: ['dive'],
+      on: {
+        DIVE_FINISHED: 'standing'
+      }
+    },
+  },
+}, {
+  actions: {
+    stand: (ctx, event) => console.log('stand'),
+    duck: (ctx, event) => console.log('duck'),
+    jump: (ctx, event) => console.log('jump'),
+    dive: (ctx, event) => console.log('dive'),
+  }
+});
+          </code></pre>
+        </section>
+
+        <section>
+          <h3>Group Exercise: Event Socket Handler</h3>
+          <ul>
+            <li>
+              Initiate call
+            </li>
+            <li>
+              Enter PIN
+            </li>
+            <li>
+              Press #
+              <ul>
+                <li>
+                  PIN valid: begin transcribing
+                </li>
+                <li>
+                  PIN invalid: end call
+                </li>
+              </ul>
+            </li>
+            <li>
+              Press * to pause transcribing
+            </li>
+            <li>
+              Press # to resume transcribing
+            </li>
+            <li>
+              Hang up to end call
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Car</h2>
+          <img src="./img/car-fsm1.png">
+        </section>
+
+        <section>
+          <h2>Car</h2>
+          <img src="./img/car-fsm2.png">
+        </section>
+
+        <section>
+          <h2>Car</h2>
+          <img src="./img/car-fsm3.png">
+        </section>
+
+        <section>
+          <h2>Car</h2>
+          <img src="./img/car-fsm4.png">
+        </section>
+
+        <section>
+          <h2>Statecharts!</h2>
+          <img src="./img/car-statechart.png">
+        </section>
+			</div>
+		</div>
+
+		<script src="lib/js/head.min.js"></script>
+		<script src="js/reveal.js"></script>
+
+		<script>
+			// More info about config & dependencies:
+			// - https://github.com/hakimel/reveal.js#configuration
+			// - https://github.com/hakimel/reveal.js#dependencies
+			Reveal.initialize({
+				dependencies: [
+					{ src: 'plugin/markdown/marked.js' },
+					{ src: 'plugin/markdown/markdown.js' },
+					{ src: 'plugin/notes/notes.js', async: true },
+					{ src: 'plugin/highlight/highlight.js', async: true },
+          { src: 'plugin/search/search.js', async: true },
+					{ src: 'plugin/zoom-js/zoom.js', async: true },
+				]
+			});
+		</script>
+	</body>
+</html>
